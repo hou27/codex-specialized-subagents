@@ -129,9 +129,9 @@ async function runCodexExecInternal(options: RunCodexExecOptions & {
     lastMessagePath,
   ];
 
-  if (options.skipGitRepoCheck) {
-    args.push("--skip-git-repo-check");
-  }
+  // if (options.skipGitRepoCheck) {
+  args.push("--skip-git-repo-check"); // always skip git repo check for now
+  // }
 
   for (const override of options.configOverrides ?? []) {
     args.push("-c", override);
