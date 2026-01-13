@@ -122,6 +122,26 @@ Sub-agent runs can load Codex skills from:
 
 Note: this repo’s `delegation-autopilot` skill is marked `delegator_exclude: true` (parent-only) to prevent delegation recursion.
 
+### Custom skills (optional)
+
+This repo also includes an optional bundle of custom Codex skills under `.codex/skills/custom-skills`.
+It adds 5 focused agent skills plus an orchestrator; prompts that start with specific `@` keywords trigger
+`delegate_run`-based sub-agents automatically. (Codex CLI 기준: `@` 키워드로 시작하면 해당 subagent 호출)
+
+Install:
+
+```bash
+./.codex/skills/custom-skills/install-custom-skills.sh
+```
+
+Included skills:
+- **Orchestrator** (`@orchestrator`): runs a 5-step flow (analyze, implement, review, test, document)
+- **Context Checker** (`@check`): repo scan + context summary
+- **Implementer** (`@code`): implement changes
+- **Reviewer** (`@review`): code review
+- **Reporter** (`@report`): work summary + commit message draft
+- **Tester** (`@test`): run tests
+
 ## Artifacts (run directories)
 
 Each tool call writes a run directory under `${CODEX_HOME:-$HOME/.codex}/delegator/runs/<run_id>/`.
