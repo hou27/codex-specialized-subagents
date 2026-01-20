@@ -1,7 +1,8 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { openSync, readSync, writeSync, closeSync, existsSync, writeFileSync, readFileSync, unlinkSync, promises as fs } from "node:fs";
+import { spawnSync } from "node:child_process";
 import path from "node:path";
-import { promises as fs } from "node:fs";
 import { z } from "zod/v4";
 
 import { createRunDir, writeJsonFile, writeTextFile } from "./lib/runDirs.js";
@@ -14,6 +15,15 @@ import { formatAutopilotToolContent, formatDelegateToolContent } from "./lib/mcp
 import { createThrottledCodexExecProgressLogger, type LogFn } from "./lib/mcp/progressLogger.js";
 import { discoverSkills } from "./lib/skills/discover.js";
 import { selectSkills } from "./lib/skills/select.js";
+
+// Ask User Tool용 스키마
+
+const AskUserInputSchema = z.object({
+  question: z.string().describe("Context and the specific question to ask the user."),
+  options: z.array(z.string()).min(2).describe("List of mutually exclusive options."),
+  tradeoffs: z.array(z.string()).optional().describe("Tradeoffs for each option (must match options order)."),
+  recommendation: z.string().optional().describe("Which option the AI recommends and why."),
+});
 
 const SandboxSchema = z.enum(["read-only", "workspace-write", "danger-full-access"]);
 const SkillsModeSchema = z.enum(["auto", "explicit", "none"]);
@@ -79,6 +89,98 @@ const DelegateToolOutputSchema = z.object({
 });
 
 type DelegateToolOutput = z.infer<typeof DelegateToolOutputSchema>;
+
+// Ask User Tool용 Helper
+function interactWithUserOS(
+  cwd: string,
+  question: string,
+  options: string[],
+  recommendation?: string
+): string {
+  // 1. [macOS] osascript를 사용한 GUI 리스트 선택창
+  if (process.platform === "darwin") {
+    try {
+      // AppleScript 작성: 옵션 리스트 생성 및 선택창 호출
+      const optionsStr = options.map((o) => `"${o.replace(/"/g, '\\"')}"`).join(", ");
+      const prompt = recommendation 
+        ? `${question.replace(/"/g, '\\"')}\\n\\n💡 Recommended: ${recommendation.replace(/"/g, '\\"')}`
+        : question.replace(/"/g, '\\"');
+      
+      const script = `
+        tell application "System Events"
+          activate
+          set userChoice to choose from list {${optionsStr}} with title "AI Question" with prompt "${prompt}" default items {${options.length > 0 ? `"${options[0].replace(/"/g, '\\"')}"` : ""}}
+        end tell
+        if userChoice is false then
+          return "CANCELLED"
+        else
+          return item 1 of userChoice
+        end if
+      `;
+
+      const result = spawnSync("osascript", ["-e", script], { encoding: "utf-8" });
+      
+      if (result.stdout) {
+        const selected = result.stdout.trim();
+        if (selected && selected !== "CANCELLED") {
+          return selected;
+        }
+      }
+    } catch (e) {
+      // GUI 실패 시 아래 파일 기반 방식으로 폴백
+    }
+  }
+
+  // 2. [Fallback] 파일 기반 세마포어 (모든 OS/환경 호환)
+  // GUI를 띄울 수 없거나 실패했을 때, 파일을 통해 사용자와 소통합니다.
+  const questionsFile = path.join(cwd, "USER_QUESTION.md");
+  const answerFile = path.join(cwd, "USER_ANSWER.txt");
+  
+  const fileContent = [
+    "# AI Needs Your Input",
+    "",
+    `**Question:** ${question}`,
+    recommendation ? `\n**💡 Recommendation:** ${recommendation}` : "",
+    "",
+    "## Options (Copy one to USER_ANSWER.txt)",
+    ...options.map((opt, i) => `${i + 1}. ${opt}`),
+    "",
+    "---",
+    "**INSTRUCTION:**",
+    "1. Read this question.",
+    `2. Create a file named 'USER_ANSWER.txt' in this directory: ${cwd}`,
+    "3. Paste your chosen option (or its number) into that file.",
+    "4. Save the file. The AI is watching and will continue automatically.",
+  ].join("\n");
+
+  writeFileSync(questionsFile, fileContent, "utf8");
+  
+  // 기존 답변 파일이 있다면 삭제 (오동작 방지)
+  if (existsSync(answerFile)) unlinkSync(answerFile);
+
+  // 답변 파일이 생길 때까지 대기 (Polling)
+  // 주의: 무한 루프지만 MCP 서버 특성상 Blocking해도 됨 (사용자가 답을 줘야 하므로)
+  while (!existsSync(answerFile)) {
+    // 1초 대기
+    spawnSync("sleep", ["1"]); 
+  }
+
+  const answer = readFileSync(answerFile, "utf8").trim();
+  
+  // 청소
+  try {
+    unlinkSync(questionsFile);
+    unlinkSync(answerFile);
+  } catch (e) {}
+
+  // 번호로 입력했을 경우 매핑
+  const numParams = parseInt(answer, 10);
+  if (!isNaN(numParams) && numParams >= 1 && numParams <= options.length) {
+    return options[numParams - 1];
+  }
+
+  return answer;
+}
 
 export async function startServer(): Promise<void> {
   const server = new McpServer({
@@ -713,6 +815,64 @@ export async function startServer(): Promise<void> {
         };
       }
     },
+  );
+
+  // Ask User Tool 등록
+  server.registerTool(
+    "ask_user",
+    {
+      title: "Ask User Question",
+      // 설명을 '기능'이 아니라 '행동 강령'으로 바꾸어 LLM이 description을 읽고 유동적으로 사용하도록 유도
+      description:
+        "CRITICAL: Use this tool IMMEDIATELY whenever the user's request is ambiguous, lacks specific implementation details, or requires a trade-off decision (e.g., library choice, architecture). " +
+        "Do NOT make assumptions. It is always better to ask for clarification using this tool than to hallucinate or guess. " +
+        "This tool creates a direct interactive prompt for the user.",
+      inputSchema: AskUserInputSchema,
+      outputSchema: z.object({
+        selection: z.string(),
+        status: z.enum(["answered", "failed"]),
+      }),
+    },
+    async (args, extra) => {
+      try {
+        // Log to Codex that we are asking a question
+        await server.sendLoggingMessage({ 
+          level: "info", 
+          data: `Asking user: ${args.question}` 
+        }, extra.sessionId);
+
+        // Execute blocking interaction via TTY
+        const selection = interactWithUserOS(
+          process.cwd(), // 파일 기반 폴백 시 사용될 경로
+          args.question,
+          args.options,
+          args.recommendation
+        );
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `User selected: "${selection}"`,
+            },
+          ],
+          structuredContent: {
+            selection,
+            status: "answered",
+          },
+        };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return {
+          content: [{ type: "text", text: `Failed to ask user: ${message}` }],
+          structuredContent: {
+            selection: "",
+            status: "failed",
+          },
+          isError: true,
+        };
+      }
+    }
   );
 
   await server.connect(new StdioServerTransport());

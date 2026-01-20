@@ -35,4 +35,10 @@ mkdir -p "$SKILLS_DIR/agent-orchestrator"
 cp prompts/orchestrator.md "$SKILLS_DIR/agent-orchestrator/SKILL.md"
 echo "Installed: agent-orchestrator (@orchestrator)"
 
+# 7. Collaboration Mode (Passive Skill)
+# Ideation 단계에서 적극적으로 질문하도록 유도하는 패시브 스킬로 등록
+mkdir -p "$SKILLS_DIR/collaboration"
+cp without-trigger/collaboration.md "$SKILLS_DIR/collaboration/SKILL.md"
+echo "Installed: collaboration-mode (passive)"
+
 echo "All skills installed"
