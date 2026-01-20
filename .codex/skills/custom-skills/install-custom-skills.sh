@@ -27,7 +27,7 @@ echo "Installed: agent-test (@test)"
 
 # 5. Reporter
 mkdir -p "$SKILLS_DIR/agent-report"
-cp prompts/REPORT.md "$SKILLS_DIR/agent-report/SKILL.md"
+cp prompts/report.md "$SKILLS_DIR/agent-report/SKILL.md"
 echo "Installed: agent-report (@report)"
 
 # 6. Orchestrator
