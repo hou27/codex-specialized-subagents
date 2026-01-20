@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { openSync, readSync, writeSync, closeSync, existsSync, writeFileSync, readFileSync, unlinkSync, promises as fs } from "node:fs";
+import { promises as fs } from "node:fs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { z } from "zod/v4";
@@ -92,7 +92,6 @@ type DelegateToolOutput = z.infer<typeof DelegateToolOutputSchema>;
 
 // Ask User Tool용 Helper
 function interactWithUserOS(
-  cwd: string,
   question: string,
   options: string[],
   recommendation?: string
@@ -127,59 +126,10 @@ function interactWithUserOS(
         }
       }
     } catch (e) {
-      // GUI 실패 시 아래 파일 기반 방식으로 폴백
     }
   }
 
-  // 2. [Fallback] 파일 기반 세마포어 (모든 OS/환경 호환)
-  // GUI를 띄울 수 없거나 실패했을 때, 파일을 통해 사용자와 소통합니다.
-  const questionsFile = path.join(cwd, "USER_QUESTION.md");
-  const answerFile = path.join(cwd, "USER_ANSWER.txt");
-  
-  const fileContent = [
-    "# AI Needs Your Input",
-    "",
-    `**Question:** ${question}`,
-    recommendation ? `\n**💡 Recommendation:** ${recommendation}` : "",
-    "",
-    "## Options (Copy one to USER_ANSWER.txt)",
-    ...options.map((opt, i) => `${i + 1}. ${opt}`),
-    "",
-    "---",
-    "**INSTRUCTION:**",
-    "1. Read this question.",
-    `2. Create a file named 'USER_ANSWER.txt' in this directory: ${cwd}`,
-    "3. Paste your chosen option (or its number) into that file.",
-    "4. Save the file. The AI is watching and will continue automatically.",
-  ].join("\n");
-
-  writeFileSync(questionsFile, fileContent, "utf8");
-  
-  // 기존 답변 파일이 있다면 삭제 (오동작 방지)
-  if (existsSync(answerFile)) unlinkSync(answerFile);
-
-  // 답변 파일이 생길 때까지 대기 (Polling)
-  // 주의: 무한 루프지만 MCP 서버 특성상 Blocking해도 됨 (사용자가 답을 줘야 하므로)
-  while (!existsSync(answerFile)) {
-    // 1초 대기
-    spawnSync("sleep", ["1"]); 
-  }
-
-  const answer = readFileSync(answerFile, "utf8").trim();
-  
-  // 청소
-  try {
-    unlinkSync(questionsFile);
-    unlinkSync(answerFile);
-  } catch (e) {}
-
-  // 번호로 입력했을 경우 매핑
-  const numParams = parseInt(answer, 10);
-  if (!isNaN(numParams) && numParams >= 1 && numParams <= options.length) {
-    return options[numParams - 1];
-  }
-
-  return answer;
+  throw new Error("ASK_USER_UNSUPPORTED");
 }
 
 export async function startServer(): Promise<void> {
@@ -843,7 +793,6 @@ export async function startServer(): Promise<void> {
 
         // Execute blocking interaction via TTY
         const selection = interactWithUserOS(
-          process.cwd(), // 파일 기반 폴백 시 사용될 경로
           args.question,
           args.options,
           args.recommendation
@@ -863,8 +812,14 @@ export async function startServer(): Promise<void> {
         };
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
+        const optionsList = args.options.map((opt, i) => `${i + 1}. ${opt}`).join("\n");
+        const recommendationLine = args.recommendation ? `\nRecommendation: ${args.recommendation}` : "";
+        const questionText =
+          message === "ASK_USER_UNSUPPORTED"
+            ? `Ask user (manual reply needed):\n${args.question}${recommendationLine}\n\nOptions:\n${optionsList}\n\nPlease reply in chat with the chosen option.`
+            : `Failed to ask user: ${message}`;
         return {
-          content: [{ type: "text", text: `Failed to ask user: ${message}` }],
+          content: [{ type: "text", text: questionText }],
           structuredContent: {
             selection: "",
             status: "failed",
