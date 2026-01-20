@@ -6,6 +6,7 @@ This repo provides a local (stdio) MCP server that exposes:
 - `delegate_autopilot` — decide whether to delegate and, if yes, orchestrate one or more `codex exec` sub-agent runs
 - `delegate_run` — run a single specialist sub-agent via `codex exec`
 - `delegate_resume` — resume a prior sub-agent thread via `codex exec resume`
+- `ask_user` — block for user clarification with an interactive prompt (GUI or file-based fallback)
 
 Each tool call writes a run directory under `${CODEX_HOME:-$HOME/.codex}/delegator/runs/<run_id>/` containing the prompt, selected skills, event stream, and structured results (artifact-first debugging).
 
@@ -111,6 +112,7 @@ If you prefer explicit tool usage, tell Codex to call one of:
 - `delegate_autopilot` (multi-agent orchestration)
 - `delegate_run` (single sub-agent run)
 - `delegate_resume` (resume a prior sub-agent thread)
+- `ask_user` (user clarification prompt)
 
 Optional (advanced): for `delegate_run` / `delegate_resume`, you can pass `reasoning_effort` (maps to `codex exec -c model_reasoning_effort="..."`) or raw `config_overrides` (maps to `codex exec -c <override>`). If you want a default for manual runs, set `CODEX_DELEGATE_REASONING_EFFORT` on the MCP server process (only applies when `reasoning_effort` is omitted and `config_overrides` does not already set `model_reasoning_effort`).
 

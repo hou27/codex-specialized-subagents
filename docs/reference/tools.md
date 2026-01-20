@@ -176,3 +176,25 @@ open_questions (0):
 next_actions (1):
 - Run tests
 ```
+
+## `ask_user`
+
+Ask the user a clarification question. The server will block until the user selects an option, using a GUI picker on macOS or a file-based fallback (`USER_QUESTION.md` / `USER_ANSWER.txt`) in the server working directory.
+
+### Input
+
+- `question`: string (required)
+- `options`: string[] (required, min 2)
+- `tradeoffs`: string[] (optional; must match `options` order)
+- `recommendation`: string (optional)
+
+### Output (`structuredContent`)
+
+- `selection`: string
+- `status`: `"answered" | "failed"`
+
+### Example `content`
+
+```text
+User selected: "Option A"
+```

@@ -4,7 +4,7 @@ This folder contains user and contributor docs beyond the root `README.md`.
 
 Start here:
 - [`../README.md`](../README.md) — quickstart + overview
-- [`usage.md`](usage.md) — how to use `delegate_*` tools effectively
+- [`usage.md`](usage.md) — how to use MCP tools (including `ask_user`)
 - [`troubleshooting.md`](troubleshooting.md) — common failure modes and fixes
 - [`development.md`](development.md) — local development and test matrix
 

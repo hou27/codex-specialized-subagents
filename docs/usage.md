@@ -28,6 +28,7 @@ codex mcp get codex-specialized-subagents
 - `delegate_autopilot`: best default for multi-step work (it can route into scan/implement/verify jobs).
 - `delegate_run`: run a single specialist sub-agent (one prompt → one result).
 - `delegate_resume`: resume a previous sub-agent thread (follow-up on a `thread_id`).
+- `ask_user`: ask for user clarification with an interactive prompt (GUI or file fallback).
 
 ## Example inputs
 
@@ -65,6 +66,17 @@ Note: `cwd` should typically be an absolute path. `delegate_autopilot` defaults 
   "task": "Continue by implementing the fix and updating docs.",
   "cwd": "/absolute/path/to/your/repo",
   "sandbox": "workspace-write"
+}
+```
+
+### `ask_user`
+
+```json
+{
+  "question": "Which approach should I take?",
+  "options": ["Option A", "Option B"],
+  "recommendation": "Option A (fewer moving parts)",
+  "tradeoffs": ["Faster but less flexible", "More flexible but slower"]
 }
 ```
 
