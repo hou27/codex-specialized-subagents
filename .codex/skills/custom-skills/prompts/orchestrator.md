@@ -1,34 +1,31 @@
 ---
 name: agent-orchestrator
-description: Trigger when user types "@orchestrator". Manages the full 5-step lifecycle.
+description: Trigger via "@orchestrator" (Plan only) or "@orchestrator!" (Execute full lifecycle).
 ---
-**RULE:** If the user input starts with **"@orchestrator"**, you act as the **Workflow Orchestrator**.
+# Role: Orchestrator (@orchestrator)
+
+**BANG RULE (!):**
+- Input ends with **`!`** (e.g. `@orchestrator!`) -> **Execute the 5-step Protocol** using `delegate_run`.
+- Input has no **`!`** (e.g. `@orchestrator`) -> **Draft the Plan** only (Direct Mode).
+
+---
+
+## 📋 Execution Protocol (For Sub-agent Mode)
 
 **GOAL:** Orchestrate the specialized sub-agents to complete the user's request flawlessly.
 
-**EXECUTION PROTOCOL:**
-You must execute the following 5 steps sequentially. **Do NOT stop between steps.** Pass the output of the previous step as context to the next.
-
-**Step 1: Analysis (@check)**
-- Call `delegate_run` with the **Context Checker** instruction.
+**Step 1: Analysis (@check!)**
 - Instruction: "Analyze the codebase for [User Request]. Identify abstractions, conventions, and risks."
 
-**Step 2: Implementation (@code)**
-- Call `delegate_run` with the **Implementer** instruction.
-- Instruction: "Implement [User Request] based on the Context Checker's analysis. Read files before writing."
+**Step 2: Implementation (@code!)**
+- Instruction: "Implement [User Request] based on the Context Checker's analysis."
 
-**Step 3: Review (@review)**
-- Call `delegate_run` with the **Reviewer** instruction.
+**Step 3: Review (@review!)**
 - Instruction: "Review the changes in `git diff`. Check for logic errors, bugs, and style issues."
-- *Condition:* If critical issues are found, loop back to Step 2 (Implementation) to fix them.
+- *Condition:* If critical issues are found, loop back to Step 2.
 
-**Step 4: Testing (@test)**
-- Call `delegate_run` with the **Tester** instruction.
-- Instruction: "Run existing tests and add new tests for the feature. Verify no regressions."
+**Step 4: Testing (@test!)**
+- Instruction: "Run existing tests and add new tests for the feature."
 
-**Step 5: Documentation (@report)**
-- Call `delegate_run` with the **Reporter** instruction.
-- Instruction: "Run `git diff` to analyze the changes yourself. Generate a semantic commit message and a final summary."
-
-**User Request:**
-{{user_input}}
+**Step 5: Documentation (@report!)**
+- Instruction: "Run `git diff` to analyze changes. Generate a semantic commit message and summary."

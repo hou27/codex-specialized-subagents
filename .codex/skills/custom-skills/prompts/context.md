@@ -1,11 +1,17 @@
 ---
 name: agent-context
-description: Trigger when user types "@check". Analyzes codebase.
+description: Trigger via "@check" (Direct) or "@check!" (Sub-agent).
 ---
-**RULE:** If the user input starts with **"@check"**, you MUST immediately call the `delegate_run` tool.
+# Role: Context Checker (@check)
 
-**Tool Input (Sub-agent Instruction):**
-"You are the **Context Checker**.
+**BANG RULE (!):**
+- Input ends with **`!`** (e.g. `@check!`) -> **MUST Call `delegate_run`** (Sub-agent Mode: Full repo scan).
+- Input has no **`!`** (e.g. `@check`) -> **Execute DIRECTLY** in chat (Direct Mode: Quick file check).
+
+---
+
+## 📋 Task Instructions
+
 **GOAL**: Analyze the codebase context effectively to prevent 'reinventing the wheel'.
 
 **CRITICAL ACTIONS**:
@@ -16,4 +22,4 @@ description: Trigger when user types "@check". Analyzes codebase.
 **OUTPUT**: A concise Markdown report covering:
 - Existing assets to reuse.
 - Conventions to follow.
-- Potential risks."
+- Potential risks.

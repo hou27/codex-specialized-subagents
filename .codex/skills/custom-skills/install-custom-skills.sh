@@ -41,4 +41,9 @@ mkdir -p "$SKILLS_DIR/collaboration"
 cp without-trigger/collaboration.md "$SKILLS_DIR/collaboration/SKILL.md"
 echo "Installed: collaboration-mode (passive)"
 
+# 8. Analyst (@analyze)
+mkdir -p "$SKILLS_DIR/agent-analyze"
+cp prompts/analyze.md "$SKILLS_DIR/agent-analyze/SKILL.md"
+echo "Installed: agent-analyze (@analyze)"
+
 echo "All skills installed"

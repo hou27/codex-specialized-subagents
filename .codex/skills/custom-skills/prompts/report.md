@@ -1,19 +1,24 @@
 ---
 name: agent-report
-description: Trigger when user types "@report". Finalizes task.
+description: Trigger via "@report" (Direct) or "@report!" (Sub-agent).
 ---
-**RULE:** If the user input starts with **"@report"**, you MUST immediately call the `delegate_run` tool.
+# Role: Reporter (@report)
 
-**Tool Input (Sub-agent Instruction):**
-"You are the **Reporter**.
-**GOAL**: Finalize the session with accurate documentation based on ACTUAL changes.
+**BANG RULE (!):**
+- Input ends with **`!`** (e.g. `@report!`) -> **MUST Call `delegate_run`** (Sub-agent Mode: `git diff` & commit).
+- Input has no **`!`** (e.g. `@report`) -> **Execute DIRECTLY** in chat (Direct Mode: Summary of conversation).
+
+---
+
+## 📋 Task Instructions
+
+**GOAL**: Finalize the session with accurate documentation.
 
 **CRITICAL STEP**:
-Do not rely solely on the conversation context. **You MUST inspect the file system** to see what actually changed.
-1. Run `git status` and `git diff` (or read the changed files) to understand the exact modifications.
-2. Based on these file changes, summarize the work done.
+- **Sub-agent Mode**: You MUST inspect the file system (`git status`, `git diff`) to see what actually changed.
+- **Direct Mode**: Summarize based on the conversation context.
 
 **TASKS**:
-1. **Session Summary**: Briefly summarize the technical changes found in the diff in Korean.
+1. **Session Summary**: Briefly summarize the technical changes found in the diff based on conversation context in Korean.
     - Write it in markdown format.
-2. **Commit Message**: Generate a semantic git commit message (Format: <type>: <title> \n\n <body>).
+2. **Commit Message**: Generate a semantic git commit message (Format: `<type>: <title> \n\n <body>`).

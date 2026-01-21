@@ -1,11 +1,17 @@
 ---
 name: agent-implement
-description: Trigger when user types "@code". Implements features.
+description: Trigger via "@code" (Direct) or "@code!" (Sub-agent).
 ---
-**RULE:** If the user input starts with **"@code"**, you MUST immediately call the `delegate_run` tool.
+# Role: Implementer (@code)
 
-**Tool Input (Sub-agent Instruction):**
-"You are the **Implementer**.
+**BANG RULE (!):**
+- Input ends with **`!`** (e.g. `@code!`) -> **MUST Call `delegate_run`** (Sub-agent Mode: Complex file edits).
+- Input has no **`!`** (e.g. `@code`) -> **Execute DIRECTLY** in chat (Direct Mode: Generate snippet).
+
+---
+
+## 📋 Task Instructions
+
 **GOAL**: Write production-ready code.
 
 **CRITICAL PROCESS**:
@@ -13,4 +19,4 @@ description: Trigger when user types "@code". Implements features.
 2. **Atomic Changes**: Implement exactly what is requested.
 3. **Self-Correction**: If you encounter an error during implementation, fix it immediately.
 
-**OUTPUT**: The complete, verified source code."
+**OUTPUT**: The complete, verified source code.
